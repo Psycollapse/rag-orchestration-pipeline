@@ -1,3 +1,99 @@
+## [v0.2.0] - Query Intelligence & Retrieval-Aware Orchestration
+
+### Overview
+Enhanced the RAG system with input-aware decision making, dynamic query rewriting, and retrieval quality evaluation. The system now adapts its behavior based on query quality and retrieval signals, moving from a static pipeline to an intelligent orchestration layer.
+
+---
+
+### Added
+
+#### Query Intelligence
+- Introduced `score_query` (in `control/query_checks.py`) to evaluate input quality
+- Implemented threshold-based query handling:
+  - Low-quality queries → forced rewrite
+  - Medium-quality queries → optional rewrite with improvement check
+  - High-quality queries → trusted as-is
+- Added significance threshold (`+0.1`) to avoid unnecessary rewrites
+
+---
+
+#### Query Rewriting
+- Added `rewrite_query()` using LLM to normalize and clarify queries
+- Ensures preservation of original intent while improving structure
+- Integrated into orchestrator as a controlled decision, not a default step
+
+---
+
+#### Multi-Question Handling
+- Detects multi-question inputs using `"?"` count
+- Splits queries into individual sub-questions
+- Processes each independently:
+  - rewrite → retrieve → synthesize
+- Combines results into structured multi-answer output
+
+---
+
+#### Retrieval Scoring
+- Updated `retrieve()` to return:
+  - `chunks`
+  - `scores`
+- Added score logging per retrieved chunk
+- Enabled retrieval signal visibility for orchestration decisions
+
+---
+
+#### Retrieval Quality Evaluation
+- Introduced average retrieval score (`avg_score`)
+- Added retry mechanism for weak retrieval:
+  - Rewrite query
+  - Increase retrieval depth (`k=3 → k=5`)
+  - Compare score improvement before accepting new query
+
+---
+
+#### Observability Improvements
+- Improved debug output:
+  - Query scores
+  - Rewritten queries
+  - Retrieval scores per chunk
+  - Average retrieval score
+- Clear separation between:
+  - query quality
+  - retrieval quality
+  - answer validation
+
+---
+
+### Design Decisions
+
+- Prioritized **adaptive orchestration** over static pipelines
+- Introduced **threshold-based decision making** (input + retrieval)
+- Kept logic deterministic and debuggable (no hidden agent behavior)
+- Multi-question handling implemented as **task routing**, not batching
+- Avoided premature cost optimization in favor of observability and control
+
+---
+
+### Known Limitations
+
+- Multi-question handling increases API cost (no cost-aware routing yet)
+- Query scoring is heuristic-based (not semantic)
+- Retrieval evaluation uses average score only (no ranking analysis yet)
+- Sub-queries do not share context (no cross-question optimization)
+- Validation remains heuristic (no semantic correctness check)
+
+---
+
+### Next Steps
+
+- Implement cost-aware routing (single vs multi-query decision)
+- Improve query scoring (semantic / LLM-based evaluation)
+- Add retrieval ranking diagnostics (top-1 vs top-k spread)
+- Introduce chunk preview debugging (content inspection)
+- Evolve orchestrator into state-machine architecture
+- Add evaluation harness for benchmarking pipeline performance
+
+----------------------
 # Changelog
 
 ## [v0.1.0] - Initial RAG Orchestration Pipeline

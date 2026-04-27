@@ -1,0 +1,13 @@
+Modern AI systems are moving beyond single-model interactions toward orchestrated pipelines that involve multiple components or agents.
+
+In a multi-agent system, each agent is responsible for a specific task. For example, one agent may handle retrieval, another may generate responses, and a third may validate the output.
+
+These agents do not operate independently. Instead, they are coordinated by an orchestration layer that controls the flow of information between them.
+
+The orchestrator decides which agent to call, in what order, and how to handle failures. For example, if a validation step fails, the orchestrator may trigger a retry with different parameters, such as increasing the number of retrieved documents or rephrasing the query.
+
+This approach allows systems to be more modular, scalable, and reliable compared to single-step model calls.
+
+A key concept in multi-agent systems is structured communication. Agents exchange information using well-defined formats, such as JSON objects, rather than raw text. This makes the system easier to debug and extend.
+
+Orchestration is particularly important in production environments, where reliability and predictability are critical. Instead of trusting a model to always produce correct outputs, the system enforces checks and balances through validation and control logic.

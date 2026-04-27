@@ -1,0 +1,90 @@
+# Changelog
+
+## [v0.1.0] - Initial RAG Orchestration Pipeline
+
+### Overview
+Built a minimal but production-oriented Retrieval-Augmented Generation (RAG) system with a clear separation between core logic, orchestration, and interface layers. The system is designed to evolve into a multi-agent architecture while remaining framework-agnostic.
+
+---
+
+### Added
+
+#### Core RAG Pipeline
+- Document ingestion from local `/data` directory
+- Text chunking with configurable size and overlap
+- Embedding generation using OpenAI (`text-embedding-3-small`)
+- Vector storage and semantic search via Pinecone
+- Context-based answer synthesis using LLM (`gpt-4o-mini`)
+- Basic answer validation (length + insufficiency detection)
+- Cost estimation and logging for LLM usage
+
+---
+
+#### Orchestration Layer
+- Introduced `orchestrator.py` as the control layer
+- Handles:
+  - Retrieval → Synthesis → Validation flow
+  - Retry mechanism with increased retrieval depth (`k=3 → k=6`)
+- Centralized decision-making separate from core functions
+
+---
+
+#### Project Structure
+Refactored from a single script into a modular architecture:
+
+- `core/`
+  - Contains core RAG functions (retrieval, synthesis, embedding, etc.)
+- `control/`
+  - Contains orchestration logic (system flow and decision-making)
+- `config/`
+  - Reserved for future configuration (agent settings, thresholds, etc.)
+- `data/`
+  - Local knowledge base (text documents)
+- `logs/`
+  - Usage and cost tracking
+- `main.py`
+  - CLI entrypoint (interface layer only)
+
+---
+
+#### Observability
+- Token usage tracking (prompt / completion / total)
+- Estimated cost calculation per request
+- Persistent logging to `logs/usage.log`
+- Retrieval inspection via printed chunks
+
+---
+
+### Design Decisions
+
+- Separated **interface**, **control**, and **execution** layers:
+  - `main.py` → user interaction
+  - `orchestrator.py` → system behavior
+  - `core_functions.py` → execution logic
+
+- Prioritized **deterministic orchestration** over premature agent abstraction
+- Built system to be **framework-agnostic** (ready for Flask/FastAPI integration)
+- Chose **external embeddings (OpenAI)** + **vector DB (Pinecone)** for flexibility
+
+---
+
+### Known Limitations
+
+- Chunk boundaries may cut mid-sentence (no section-aware chunking yet)
+- Retrieval uses fixed `k` values (no dynamic tuning)
+- Validation is heuristic-based (no semantic evaluation yet)
+- No query rewriting or retrieval scoring yet
+- No evaluation harness or benchmarking framework
+
+---
+
+### Next Steps
+
+- Introduce query rewriting for improved retrieval precision
+- Add retrieval quality evaluation and benchmarking
+- Improve chunking strategy (section-aware / semantic chunking)
+- Evolve orchestrator into a state-driven system
+- Prepare API layer (Flask) for external integration
+- Explore multi-agent (A2A) orchestration patterns
+
+---

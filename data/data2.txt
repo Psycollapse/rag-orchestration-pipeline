@@ -1,0 +1,13 @@
+Chunking is the process of splitting large documents into smaller pieces so they can be processed and retrieved efficiently.
+
+One of the most important decisions in a RAG system is choosing the chunk size. Smaller chunks tend to improve precision because each chunk contains more focused information. However, they may lose context if important details are spread across multiple chunks.
+
+Larger chunks preserve more context, but they can introduce irrelevant information that reduces retrieval quality. This is often referred to as the tradeoff between precision and context.
+
+Overlap is commonly used to mitigate boundary issues. By overlapping chunks, the system ensures that important information near the edges of chunks is not lost. However, too much overlap increases redundancy and storage cost.
+
+Another key parameter is k, the number of chunks retrieved for a given query. Increasing k improves recall, meaning the system is more likely to include relevant information. However, it also increases noise, which can confuse the language model.
+
+Effective chunking strategies often combine fixed-size chunking with structure-aware methods, such as splitting documents by headings or sections.
+
+In technical domains, such as manufacturing or legal documentation, preserving structure can significantly improve retrieval performance because important information is often organized into clearly defined sections.

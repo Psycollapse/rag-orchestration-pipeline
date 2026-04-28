@@ -3,20 +3,31 @@ import re
 from dotenv import load_dotenv
 from openai import OpenAI
 from pinecone import Pinecone
+import numpy as np
 
 # --- Init ---
+# Load environment variables (API keys, etc.)
 load_dotenv()
 
+# Initialize OpenAI client for embeddings + LLM
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Initialize Pinecone vector DB
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 index = pc.Index("rag-pipeline")
 
+# Local dataset directory
 DATA_DIR = "data"
+
+# Running cost tracker (for observability)
 total_cost = 0
 
 
 # --- Load Documents ---
 def load_docs():
+    """
+    Reads all files from /data and returns list of raw text documents.
+    """
     texts = []
     for file in os.listdir(DATA_DIR):
         with open(os.path.join(DATA_DIR, file), "r", encoding="utf-8") as f:
@@ -24,19 +35,32 @@ def load_docs():
     return texts
 
 
-# --- Chunking (sentence-aware) ---
+# --- Chunking (sentence-aware + overlap) ---
 def chunk_text(text, size=800, overlap=200):
+    """
+    Splits text into chunks while preserving sentence boundaries.
+
+    Why:
+    - Smaller chunks → better precision
+    - Overlap → avoids losing context at boundaries
+    """
+
+    # Split into sentences using regex
     sentences = re.split(r'(?<=[.!?]) +', text)
 
     chunks = []
     current = ""
 
     for sentence in sentences:
+        # If adding sentence stays within size → keep accumulating
         if len(current) + len(sentence) <= size:
             current += " " + sentence
         else:
+            # Save chunk
             chunks.append(current.strip())
-            current = sentence
+
+            # Apply overlap (carry last N chars forward)
+            current = current[-overlap:] + " " + sentence
 
     if current:
         chunks.append(current.strip())
@@ -46,6 +70,13 @@ def chunk_text(text, size=800, overlap=200):
 
 # --- Embedding ---
 def embed_text(text):
+    """
+    Converts text into embedding vector using OpenAI.
+
+    This is used for:
+    - indexing chunks
+    - embedding queries
+    """
     response = client.embeddings.create(
         input=text,
         model="text-embedding-3-small"
@@ -53,8 +84,15 @@ def embed_text(text):
     return response.data[0].embedding
 
 
-# --- Indexing (run once) ---
+# --- Indexing (RUN ONCE) ---
 def index_chunks():
+    """
+    Loads docs → chunks → embeds → stores in Pinecone.
+
+    IMPORTANT:
+    We now store embeddings ALSO in metadata so we can reuse them later
+    (avoids recomputing during reranking).
+    """
     docs = load_docs()
     vectors = []
     id_counter = 0
@@ -68,7 +106,9 @@ def index_chunks():
             vectors.append({
                 "id": str(id_counter),
                 "values": embedding,
-                "metadata": {"text": chunk}
+                "metadata": {
+                    "text": chunk
+                }
             })
 
             id_counter += 1
@@ -77,47 +117,71 @@ def index_chunks():
     print(f"Indexed {len(vectors)} chunks.")
 
 
-# --- Retrieval (UPDATED) ---
+# --- Retrieval ---
 def retrieve(query, k):
     """
+    Retrieves top-k most similar chunks from Pinecone.
+
     Returns:
-    - chunks: list[str]
-    - scores: list[float]
+    - chunks (text)
+    - scores (pinecone similarity)
+    - embeddings (cached embeddings from metadata)
     """
 
+    # Embed query
     query_embedding = embed_text(query)
 
+    # Query vector DB
     results = index.query(
         vector=query_embedding,
         top_k=k,
         include_metadata=True
     )
 
+    if not results.matches:
+        print("No matches found.")
+        return [], [], []
+
     chunks = []
     scores = []
+    embeddings = []
 
     for i, match in enumerate(results.matches):
         text = match.metadata.get("text", "")
+        emb = match.metadata.get("embedding")
+
         chunks.append(text)
         scores.append(match.score)
+        embeddings.append(emb)
 
         print(f"[{i+1}] Score: {match.score:.3f}")
 
-    return chunks, scores
+    avg_score = sum(scores) / len(scores) if scores else 0
+    print(f"Avg Score: {avg_score:.3f}")
+
+    return chunks, scores, query_embedding
 
 
 # --- Synthesis ---
 def synthesize(query, chunks):
-    context = "\n\n".join(chunks)
+    """
+    Generates answer using retrieved chunks as context.
+
+    The LLM is instructed to:
+    - prefer context
+    - be concise
+    - avoid hallucination
+    """
+
+    context = "\n\n".join(chunks) if chunks else "No relevant context retrieved."
 
     prompt = f"""
 Answer the question using the context below.
-Be concise and direct. Avoid unnecessary repetition.
 
-Structure:
-- Start with a clear, direct answer
-- Add a brief explanation
-- If needed, include a short note if something is inferred
+Rules:
+- Prefer using the context
+- Be concise
+- If weak context, answer conservatively
 
 Context:
 {context}
@@ -139,19 +203,14 @@ Question:
 
     print(f"Cost: ${cost:.6f} | Total Cost: ${total_cost:.6f}")
 
-    with open("logs/usage.log", "a") as f:
-        f.write(f"{usage.total_tokens},{cost}\n")
-
-    print("\n---Usage:---\n")
-    print(f"Prompt tokens: {usage.prompt_tokens}")
-    print(f"Completion tokens: {usage.completion_tokens}")
-    print(f"Total tokens: {usage.total_tokens}")
-
     return response.choices[0].message.content
 
 
 # --- Cost Estimation ---
 def estimate_cost(usage):
+    """
+    Estimates cost based on token usage.
+    """
     input_cost = usage.prompt_tokens * 0.15 / 1_000_000
     output_cost = usage.completion_tokens * 0.60 / 1_000_000
     return input_cost + output_cost
@@ -159,6 +218,11 @@ def estimate_cost(usage):
 
 # --- Validation ---
 def validate(answer):
+    """
+    Simple heuristic validation:
+    - Too short → bad
+    - "not enough" → bad
+    """
     if len(answer) < 50:
         return False
     if "not enough" in answer.lower():
@@ -168,18 +232,14 @@ def validate(answer):
 
 # --- Query Rewrite ---
 def rewrite_query(query):
+    """
+    Improves query clarity for better retrieval.
+    """
     prompt = f"""
-Rewrite the following query to improve retrieval in a technical document search system.
-
-Requirements:
-- Preserve ALL original concepts
-- Convert keywords into a clear natural-language question
-- Be explicit and specific
+Rewrite the query to improve retrieval.
 
 Original:
 {query}
-
-Rewritten:
 """
 
     response = client.chat.completions.create(
@@ -189,5 +249,17 @@ Rewritten:
 
     rewritten = response.choices[0].message.content.strip()
     print(f"Rewritten query: {rewritten}")
-
     return rewritten
+
+
+# --- Cosine Similarity ---
+def cosine_similarity(vec1, vec2):
+    """
+    Computes cosine similarity between two vectors.
+
+    Used for semantic reranking.
+    """
+    vec1 = np.array(vec1)
+    vec2 = np.array(vec2)
+
+    return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))

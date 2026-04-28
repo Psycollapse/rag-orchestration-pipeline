@@ -1,13 +1,9 @@
-Chunking is the process of splitting large documents into smaller pieces so they can be processed and retrieved efficiently.
+One of the major challenges facing perovskite solar cells is their limited stability under real-world operating conditions. Degradation mechanisms are often associated with environmental exposure, particularly to moisture, oxygen, and thermal stress.
 
-One of the most important decisions in a RAG system is choosing the chunk size. Smaller chunks tend to improve precision because each chunk contains more focused information. However, they may lose context if important details are spread across multiple chunks.
+Moisture can penetrate the perovskite layer and cause chemical decomposition, leading to the formation of lead iodide and other byproducts. This process significantly reduces device performance. Oxygen can also contribute to degradation, especially under illumination, where photo-oxidative reactions occur.
 
-Larger chunks preserve more context, but they can introduce irrelevant information that reduces retrieval quality. This is often referred to as the tradeoff between precision and context.
+Thermal instability is another concern. Elevated temperatures can accelerate ion migration within the perovskite lattice. Ion migration refers to the movement of ions such as iodide or methylammonium within the material, which can lead to hysteresis in device performance and long-term degradation.
 
-Overlap is commonly used to mitigate boundary issues. By overlapping chunks, the system ensures that important information near the edges of chunks is not lost. However, too much overlap increases redundancy and storage cost.
+Interface instability between the perovskite layer and charge transport layers also plays a critical role. Poor interface engineering can result in recombination losses and structural degradation over time.
 
-Another key parameter is k, the number of chunks retrieved for a given query. Increasing k improves recall, meaning the system is more likely to include relevant information. However, it also increases noise, which can confuse the language model.
-
-Effective chunking strategies often combine fixed-size chunking with structure-aware methods, such as splitting documents by headings or sections.
-
-In technical domains, such as manufacturing or legal documentation, preserving structure can significantly improve retrieval performance because important information is often organized into clearly defined sections.
+To address these challenges, researchers are exploring strategies such as compositional engineering, encapsulation techniques, and the use of more stable inorganic cations.

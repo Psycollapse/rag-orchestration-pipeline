@@ -1,3 +1,126 @@
+## [v0.3.0] - Hybrid Retrieval, Dynamic Thresholding & Answer-Aware Routing
+
+### Overview
+Extended the orchestration layer to incorporate hybrid retrieval scoring, semantic reranking, and dynamic confidence thresholds. The system now differentiates between retrieval relevance and answer validity, enabling selective fallback to direct LLM generation when context is insufficient. This version represents the transition from retrieval-aware orchestration to adaptive decision-making.
+
+---
+
+### Added
+
+#### Hybrid Scoring
+- Combined semantic similarity and Pinecone retrieval scores into a unified ranking signal
+- Introduced normalization layer to align scoring scales
+- Enabled more accurate chunk ranking across heterogeneous datasets
+
+---
+
+#### Semantic Reranking
+- Added per-question semantic similarity computation using embeddings
+- Implemented reranking of retrieved chunks based on query-specific relevance
+- Shifted from shared chunk reuse to per-question context selection
+
+---
+
+#### Dynamic Thresholding
+- Introduced adaptive confidence threshold:
+  threshold = mean - beta * std
+- Enabled query-dependent routing decisions
+- Improved behavior across varying dataset density and relevance distributions
+
+---
+
+#### Answer-Aware Validation
+- Added post-synthesis validation layer to detect weak or ungrounded answers
+- Implemented heuristic detection of:
+  - missing context ("not found")
+  - inferred responses ("can be inferred")
+  - lack of explicit grounding ("does not")
+- Enabled fallback to direct LLM when answers are not well-supported by retrieved context
+
+---
+
+#### Selective Fallback Routing
+- Decoupled retrieval confidence from answer validity
+- System now routes based on:
+  - strong retrieval + grounded answer → RAG
+  - strong retrieval + weak answer → fallback
+- Prevents hallucination under high retrieval confidence
+
+---
+
+#### Embedding Architecture Fix
+- Removed invalid embedding storage from Pinecone metadata
+- Reintroduced on-demand embedding computation for reranking
+- Established correct separation between retrieval layer and semantic layer
+
+---
+
+#### Index Management Tooling
+- Added CLI tool for index lifecycle management (tools/manage_index.py)
+- Supports:
+  - index creation
+  - optional data deletion
+  - controlled reindexing
+- Separated infrastructure operations from core system logic
+
+---
+
+### Improvements
+
+#### Multi-Question Handling
+- Refactored to use shared retrieval with per-question reranking
+- Reduced redundant API calls while improving contextual precision
+
+---
+
+#### Observability
+- Added debug output for:
+  - hybrid scores
+  - dynamic threshold components (mean, std)
+  - per-question routing decisions
+- Improved transparency of system behavior during execution
+
+---
+
+#### Retrieval Robustness
+- Improved performance under:
+  - domain transfer (e.g. perovskite materials)
+  - incomplete datasets
+  - partially relevant contexts
+
+---
+
+### Design Decisions
+
+- Prioritized adaptive decision-making over static thresholds
+- Treated retrieval relevance and answer validity as separate signals
+- Introduced answer-aware routing to prevent hallucination
+- Maintained deterministic and debuggable orchestration
+- Accepted additional embedding cost in favor of correctness
+
+---
+
+### Known Limitations
+
+- Semantic reranking requires recomputing embeddings (no caching yet)
+- Answer validation is heuristic-based (string matching)
+- No cost-aware routing between RAG and direct LLM
+- Threshold parameters (alpha, beta) require manual tuning
+- No formal evaluation harness implemented
+
+---
+
+### Next Steps
+
+- Introduce embedding cache to reduce recomputation cost
+- Replace heuristic validation with LLM-based grounding check
+- Implement cost-aware routing strategies
+- Add retrieval ranking diagnostics (distribution analysis)
+- Build evaluation framework for benchmarking
+- Explore state-machine orchestration patterns
+
+----------
+
 ## [v0.2.0] - Query Intelligence & Retrieval-Aware Orchestration
 
 ### Overview
@@ -103,7 +226,7 @@ Built a minimal but production-oriented Retrieval-Augmented Generation (RAG) sys
 
 ---
 
-### Added
+### Addedmofo
 
 #### Core RAG Pipeline
 - Document ingestion from local `/data` directory
